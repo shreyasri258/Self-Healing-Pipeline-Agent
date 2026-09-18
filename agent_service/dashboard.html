@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Self-Healing Pipeline Agent Dashboard</title>
+    <style>
+        body {
+            font-family: -apple-system, Segoe UI, Arial, sans-serif;
+            background: #0f1117;
+            color: #e6e6e6;
+            margin: 0;
+            padding: 2rem;
+        }
+        h1 { font-size: 1.4rem; margin-bottom: 1.5rem; }
+        .cards {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+        .card {
+            background: #1a1d27;
+            border: 1px solid #2a2d3a;
+            border-radius: 10px;
+            padding: 1rem 1.5rem;
+            min-width: 160px;
+        }
+        .card .label { font-size: 0.8rem; color: #9a9dab; text-transform: uppercase; letter-spacing: 0.05em; }
+        .card .value { font-size: 1.8rem; font-weight: 600; margin-top: 0.25rem; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid #2a2d3a; }
+        th { color: #9a9dab; font-weight: 500; text-transform: uppercase; font-size: 0.75rem; }
+        .status-auto_fixed { color: #4ade80; }
+        .status-escalated { color: #fbbf24; }
+        .status-diagnosed { color: #60a5fa; }
+        .status-received { color: #9a9dab; }
+        .refresh-note { color: #6b6e7c; font-size: 0.8rem; margin-top: 1rem; }
+    </style>
+</head>
+<body>
+    <h1>Self-Healing Pipeline Agent — Dashboard</h1>
+
+    <div class="cards" id="cards"><!-- filled by JS --></div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th><th>DAG</th><th>Task</th><th>Failure Type</th>
+                <th>Status</th><th>Resolution</th><th>Created</th>
+            </tr>
+        </thead>
+        <tbody id="incidents-body"></tbody>
+    </table>
+
+    <div class="refresh-note">Auto-refreshes every 10s.</div>
+
+    <script>
+        async function loadDashboard() {
+            const [statsRes, incidentsRes] = await Promise.all([
+                fetch('/stats'),
+                fetch('/incidents'),
+            ]);
+            const stats = await statsRes.json();
+            const incidents = await incidentsRes.json();
+
+            const mttr = stats.mttr_seconds !== null
+                ? `${stats.mttr_seconds.toFixed(1)}s`
+                : '—';
+
+            document.getElementById('cards').innerHTML = `
+                <div class="card"><div class="label">Total Incidents</div><div class="value">${stats.total_incidents}</div></div>
+                <div class="card"><div class="label">Auto-Fixed</div><div class="value">${stats.by_status.auto_fixed || 0}</div></div>
+                <div class="card"><div class="label">Escalated</div><div class="value">${stats.by_status.escalated || 0}</div></div>
+                <div class="card"><div class="label">Avg Resolution Time</div><div class="value">${mttr}</div></div>
+            `;
+
+            document.getElementById('incidents-body').innerHTML = incidents.map(i => `
+                <tr>
+                    <td>${i.id}</td>
+                    <td>${i.dag_id}</td>
+                    <td>${i.task_id}</td>
+                    <td>${i.failure_type || 'None'}</td>
+                    <td class="status-${i.status}">${i.status}</td>
+                    <td>${i.resolution ? i.resolution.slice(0, 60) + (i.resolution.length > 60 ? '…' : '') : 'None'}</td>
+                    <td>${new Date(i.created_at).toLocaleString()}</td>
+                </tr>
+            `).join('');
+        }
+
+        loadDashboard();
+        setInterval(loadDashboard, 10000);
+    </script>
+</body>
+</html>
