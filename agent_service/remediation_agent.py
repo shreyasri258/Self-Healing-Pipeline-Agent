@@ -1,5 +1,18 @@
 from db import get_connection
+import os
+import requests
 
+SLACK_WEBHOOK_URL = os.environ.get("SLACK_WEBHOOK_URL")
+
+
+def send_slack_message(text: str):
+    if not SLACK_WEBHOOK_URL:
+        print(f"[Slack disabled, no SLACK_WEBHOOK_URL set] Would have sent: {text}")
+        return
+    try:
+        requests.post(SLACK_WEBHOOK_URL, json={"text": text}, timeout=5)
+    except Exception as e:
+        print(f"Failed to send Slack message: {e}")
 
 def remediate_null_spike() -> dict:
     """Scans raw_sales for rows not yet in clean_sales. Rows with a missing
@@ -57,12 +70,13 @@ def escalate_schema_drift(dag_id: str, task_id: str, error_message: str) -> dict
     silently corrupt data. We log a clear escalation instead. This is
     stubbed to print/log for now; swap in a real Slack/email call later
     without changing anything upstream of this function."""
+
     message = (
-        f"ESCALATION: schema_drift detected in {dag_id}.{task_id}. "
-        f"A human should review the upstream schema change before any fix "
-        f"is applied. Error: {error_message}"
+        f":warning: *schema_drift detected* in `{dag_id}.{task_id}`\n"
+        f"A human should review the upstream schema change before any fix is applied.\n"
+        f"Error: `{error_message}`"
     )
-    print(message) 
+    send_slack_message(message)
 
     return {
         "action": "escalate_to_human",

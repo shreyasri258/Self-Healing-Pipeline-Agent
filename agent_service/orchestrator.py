@@ -59,16 +59,20 @@ def handle_incident(dag_id, task_id, run_id, error_message) -> dict:
         failure_type = diagnosis["failure_type"]
 
       
-        if failure_type == "null_spike":
-            result = remediate_null_spike()
-            new_status, actor = "auto_fixed", "remediation_agent"
-        elif failure_type == "api_timeout":
-            result = remediate_api_timeout(dag_id, task_id)
-            new_status, actor = "auto_fixed", "remediation_agent"
+            
+        if failure_type in ("null_spike", "api_timeout"):
+            proposed_action = (
+                f"PROPOSED: {'quarantine rows with missing email' if failure_type == 'null_spike' else f'retry task ' + task_id}"
+                f" — awaiting human approval."
+            )
+            new_status = "pending_approval"
+            actor = "orchestrator"
+            action_name = "proposed_remediation"
+            result = {"action": action_name, "summary": proposed_action}
         elif failure_type == "schema_drift":
             result = escalate_schema_drift(dag_id, task_id, error_message)
             new_status, actor = "escalated", "escalation_agent"
-        else:
+        else: 
             result = {"action": "none", "summary": "Unrecognized failure type; escalating by default."}
             new_status, actor = "escalated", "escalation_agent"
 

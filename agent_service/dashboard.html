@@ -35,6 +35,20 @@
         .status-diagnosed { color: #60a5fa; }
         .status-received { color: #9a9dab; }
         .refresh-note { color: #6b6e7c; font-size: 0.8rem; margin-top: 1rem; }
+
+
+        .status-pending_approval { color: #f97316; }
+.status-rejected { color: #f87171; }
+button.approve, button.reject {
+    padding: 0.25rem 0.6rem;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-size: 0.75rem;
+    margin-right: 0.3rem;
+}
+button.approve { background: #16a34a; color: white; }
+button.reject { background: #dc2626; color: white; }
     </style>
 </head>
 <body>
@@ -74,18 +88,31 @@
                 <div class="card"><div class="label">Avg Resolution Time</div><div class="value">${mttr}</div></div>
             `;
 
-            document.getElementById('incidents-body').innerHTML = incidents.map(i => `
+                       document.getElementById('incidents-body').innerHTML = incidents.map(i => `
                 <tr>
                     <td>${i.id}</td>
                     <td>${i.dag_id}</td>
                     <td>${i.task_id}</td>
-                    <td>${i.failure_type || 'None'}</td>
+                    <td>${i.failure_type || 'Unknown'}</td>
                     <td class="status-${i.status}">${i.status}</td>
-                    <td>${i.resolution ? i.resolution.slice(0, 60) + (i.resolution.length > 60 ? '…' : '') : 'None'}</td>
+                    <td>${i.resolution ? i.resolution.slice(0, 60) + (i.resolution.length > 60 ? '…' : '') : 'Unknown'}</td>
                     <td>${new Date(i.created_at).toLocaleString()}</td>
+                    <td>${i.status === 'pending_approval' ? `
+                        <button class="approve" onclick="approveIncident(${i.id})">Approve</button>
+                        <button class="reject" onclick="rejectIncident(${i.id})">Reject</button>
+                    ` : ''}</td>
                 </tr>
             `).join('');
         }
+        async function approveIncident(id) {
+    await fetch(`/incidents/${id}/approve`, { method: 'POST' });
+    loadDashboard();
+}
+
+async function rejectIncident(id) {
+    await fetch(`/incidents/${id}/reject`, { method: 'POST' });
+    loadDashboard();
+}
 
         loadDashboard();
         setInterval(loadDashboard, 10000);
