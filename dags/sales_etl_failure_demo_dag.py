@@ -1,7 +1,7 @@
 """
 lets us choose a failure mode at trigger time via an Airflow Param.
 """
-from datetime import datetime, timedelta
+from datetime import datetime
 import os
 import logging
 import requests
@@ -31,7 +31,10 @@ def notify_agent_of_failure(context):
     }
 
     try:
-        response = requests.post(AGENT_SERVICE_URL_ENV, json=payload, timeout=5)
+        response = requests.post(  AGENT_SERVICE_URL_ENV,
+            json=payload,
+            headers={"X-Agent-Secret": os.environ.get("AGENT_WEBHOOK_SECRET", "")},
+            timeout=5)
         response.raise_for_status()
         logging.info("Notified agent service of failure: %s", payload)
     except Exception as e:
